@@ -2,35 +2,13 @@ module Client where
 
 import Types hiding (Config(..))
 import qualified Types as T
-import Control.Monad
 import Control.Monad.State
-import Control.Concurrent.STM.TChan
 import Control.Concurrent.STM
-import Control.Concurrent.MVar
 import Connection (connect, write)
 import Command
 import Control.Concurrent
 import System.IO
-
-type BotM = State T.Config
-
-behavior :: Behavior -> BotM ()
-behavior b = modify $ \conf -> let bs = T.behaviors conf
-                               in conf{T.behaviors = (b:bs)}
-
-server :: String -> BotM ()
-server s = modify $ \conf -> conf{T.server = s}
-
-port :: Int -> BotM ()
-port s = modify $ \conf -> conf{T.port = s}
-
-nick :: String -> BotM ()
-nick s = modify $ \conf -> conf{T.nick = s}
-
-ircChans :: [String] -> BotM ()
-ircChans s = modify $ \conf -> conf{T.ircChans = s}
-
-
+import Monad.BotM
 
 newConfig :: T.Config
 newConfig = T.Config "" 0 "" "" [] []
@@ -43,13 +21,6 @@ createBot m = let conf = execState m newConfig
 
                     return $ Bot conf hdl chan mvar
 
-
-doCommand :: Command -> Bot -> IO ()
-doCommand cmd bot = atomically $ writeTChan (writingChannel bot) cmd
-
-ignore :: Bot -> IO ()
-ignore _ = return ()
-
 logMsg :: String -> IO ()
 logMsg s = putStrLn $ "LOGGING: " ++ s
 
@@ -57,6 +28,23 @@ joinChannels :: Bot -> IO ()
 joinChannels bot =
   let chans = T.ircChans $ config bot
   in sequence_ $ map (\c -> doCommand (JOIN c) bot) chans
+
+
+
+readLoop :: Bot -> IO ThreadId
+readLoop bot =
+  forkIO $ forever $ do s <- hGetLine (handle bot)
+                        logMsg s
+                        case parseCommand s of
+                          Right cmd ->
+                            forM_ (T.behaviors $ config bot) $ \behavior ->
+                              behavior cmd bot
+                          _ -> return ()
+
+writeLoop :: Bot -> IO ThreadId
+writeLoop bot =
+  forkIO $ forever $ do s <- atomically $ readTChan (writingChannel bot)
+                        write (handle bot) s
 
 serve :: BotM a -> IO ()
 serve botm =
@@ -66,15 +54,8 @@ serve botm =
 
      joinChannels bot
 
-     readThreadId <- forkIO $ forever $ do s <- hGetLine (handle bot)
-                                           logMsg s
-                                           case parseCommand s of
-                                             Right cmd ->
-                                               forM_ (T.behaviors $ config bot) $ \b -> b cmd bot
-                                             _ -> return ()
-
-     writeThreadId <- forkIO $ forever $ do s <- atomically $ readTChan (writingChannel bot)
-                                            write (handle bot) s
+     readThreadId <- readLoop bot
+     writeThreadId <- writeLoop bot
 
 
      takeMVar (done bot)

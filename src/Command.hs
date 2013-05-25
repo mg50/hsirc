@@ -11,20 +11,41 @@ instance Show Command where
   show (PONG s) = "PONG :" ++ s
   show (NICK s) = "NICK " ++ s
   show (USER s) = "USER " ++ s ++ " 0 * :tutorial bot"
-  show (PRIVMSG source msg) = case source of
-                                Channel s -> "PRIVMSG " ++ s ++ " #" ++ msg
-                                User    s -> "PRIVMSG " ++ s ++ " " ++ msg
+  show (PRIVMSG source msg)
+    = case source of
+        Channel chan nick -> "PRIVMSG #" ++ chan ++ " " ++ msg
+        User nick         -> "PRIVMSG " ++ nick ++ " " ++ msg
 
-privmsg :: Parser Command
-privmsg = do string "PRIVMSG "
-             c <- anyChar
-             cs <- many alphaNum
-             space
-             msg <- many anyChar
 
-             return $ if c == '#'
-                         then PRIVMSG (Channel cs) msg
-                         else PRIVMSG (User (c:cs)) msg
+userPrivmsg :: Parser Command
+userPrivmsg = do char ':'
+                 nick <- many $ noneOf "!"
+                 char '!'
+                 many $ noneOf " "
+                 spaces
+                 string "PRIVMSG"
+                 spaces
+                 many $ noneOf "# "
+                 spaces
+                 char ':'
+                 msg <- many anyChar
+                 return $ PRIVMSG (User nick) msg
+
+chanPrivmsg :: Parser Command
+chanPrivmsg = do char ':'
+                 nick <- many $ noneOf "!"
+                 char '!'
+                 many $ noneOf " "
+                 spaces
+                 string "PRIVMSG"
+                 spaces
+                 char '#'
+                 chan <- many $ noneOf " "
+                 spaces
+                 char ':'
+                 msg <- many anyChar
+                 return $ PRIVMSG (Channel chan nick) msg
+
 
 nick :: Parser Command
 nick = do string "NICK "
@@ -41,6 +62,6 @@ pong = do string "PONG :"
           cs <- many anyChar
           return $ PONG cs
 
-command = try privmsg <|> try nick <|> try ping <|> try pong
+command = try chanPrivmsg <|> try userPrivmsg <|> try nick <|> try ping <|> try pong
 
 parseCommand cmd = parse command "" cmd

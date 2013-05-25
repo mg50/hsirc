@@ -12,6 +12,6 @@ connect config = do h <- connectTo (server config) $ PortNumber (fromIntegral $ 
                     return h
 
 write :: (Show a) => Handle -> a -> IO ()
-write h msg = do hPutStrLn h msg'
-                 putStr $ "SENDING: " ++ msg' ++ "\r\n"
+write h msg = do putStr $ "SENDING: " ++ msg' ++ "\r\n"
+                 hPutStrLn h msg'
   where msg' = show msg

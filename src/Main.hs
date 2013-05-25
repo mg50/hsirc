@@ -2,6 +2,7 @@
 module Main where
 
 import Client
+import Monad.BotM
 import Types(Command(..))
 
 bot :: BotM ()
@@ -10,12 +11,13 @@ bot = do server "irc.freenode.net"
          ircChans ["hellohello"]
          nick "thebot"
 
-         behavior $ \cmd -> case cmd of
-                              PING x -> doCommand $ PONG x
-                              _      -> ignore
+         behavior $ \cmd bot -> case cmd of
+                                  PING x -> doCommand (PONG x) bot
+                                  _      -> return ()
 
-         behavior $ \cmd -> case cmd of
-                              m@(PRIVMSG src msg) -> doCommand m
-                              _                   -> ignore
+         behavior $ \cmd bot -> case cmd of
+                                  m@(PRIVMSG src msg) -> doCommand m bot
+                                  _                   -> return ()
+
 
 main = serve bot

@@ -27,7 +27,7 @@ data Bot = Bot { config :: Config
                , done :: MVar ()
                }
 
-data MessageSource = Channel String | User String
+data MessageSource = Channel IRCChannelName Nick | User Nick
 
 data Command = PING String
              | PONG String
