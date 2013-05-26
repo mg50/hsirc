@@ -9,9 +9,10 @@ import Command
 import Control.Concurrent
 import System.IO
 import Monad.BotM
+import Behavior.Default (pingPong)
 
 newConfig :: T.Config
-newConfig = T.Config "" 0 "" "" [] []
+newConfig = T.Config "" 0 "" "" [] [pingPong]
 
 createBot :: BotM a -> IO Bot
 createBot m = let conf = execState m newConfig
@@ -45,6 +46,8 @@ writeLoop :: Bot -> IO ThreadId
 writeLoop bot =
   forkIO $ forever $ do s <- atomically $ readTChan (writingChannel bot)
                         write (handle bot) s
+
+say bot src msg = doCommand (PRIVMSG src msg) bot
 
 serve :: BotM a -> IO ()
 serve botm =

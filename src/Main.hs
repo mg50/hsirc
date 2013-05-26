@@ -11,13 +11,8 @@ bot = do server "irc.freenode.net"
          ircChans ["hellohello"]
          nick "thebot"
 
-         behavior $ \cmd bot -> case cmd of
-                                  PING x -> doCommand (PONG x) bot
-                                  _      -> return ()
-
-         behavior $ \cmd bot -> case cmd of
-                                  m@(PRIVMSG src msg) -> doCommand m bot
-                                  _                   -> return ()
+         onMessageMatch "^!bot repeat (.*)" $ \matches src bot ->
+           say bot src $ "you said: " ++ (matches !! 0 !! 1)
 
 
 main = serve bot

@@ -5,6 +5,7 @@ import qualified Types as T
 import Control.Monad.State
 import Control.Concurrent.STM
 
+import Text.Regex.PCRE ((=~))
 
 import Control.Concurrent
 import System.IO
@@ -31,14 +32,11 @@ ircChans s = modify $ \conf -> conf{T.ircChans = s}
 doCommand :: Command -> Bot -> IO ()
 doCommand cmd bot = atomically $ writeTChan (writingChannel bot) cmd
 
-onChanMessage :: (IRCChannelName -> Nick -> String -> Bot -> IO ()) -> BotM ()
-onChanMessage fn = behavior $ \cmd bot ->
+onMessageMatch regex fn = behavior $ \cmd bot ->
   case cmd of
-    PRIVMSG (Channel chan nick) msg -> fn chan nick msg bot
-    _ -> return ()
-
-onUserMessage :: (Nick -> String -> Bot -> IO ()) -> BotM ()
-onUserMessage fn = behavior $ \cmd bot ->
-  case cmd of
-    PRIVMSG (User nick) msg -> fn nick msg bot
+    PRIVMSG src msg ->
+      let matches = msg =~ regex :: [[String]]
+      in if null matches
+            then return ()
+            else fn matches src bot
     _ -> return ()
