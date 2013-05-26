@@ -13,8 +13,8 @@ instance Show Command where
   show (USER s) = "USER " ++ s ++ " 0 * :tutorial bot"
   show (PRIVMSG source msg)
     = case source of
-        Channel chan nick -> "PRIVMSG #" ++ chan ++ " " ++ msg
-        User nick         -> "PRIVMSG " ++ nick ++ " " ++ msg
+        Channel chan nick -> "PRIVMSG #" ++ chan ++ " :" ++ msg
+        User nick         -> "PRIVMSG " ++ nick ++ " :" ++ msg
 
 
 userPrivmsg :: Parser Command

@@ -31,14 +31,14 @@ ircChans s = modify $ \conf -> conf{T.ircChans = s}
 doCommand :: Command -> Bot -> IO ()
 doCommand cmd bot = atomically $ writeTChan (writingChannel bot) cmd
 
-onChanMessage :: (IRCChannelName -> Nick -> String -> Command) -> BotM ()
+onChanMessage :: (IRCChannelName -> Nick -> String -> Bot -> IO ()) -> BotM ()
 onChanMessage fn = behavior $ \cmd bot ->
   case cmd of
-    PRIVMSG (Channel chan nick) msg -> doCommand (fn chan nick msg) bot
+    PRIVMSG (Channel chan nick) msg -> fn chan nick msg bot
     _ -> return ()
 
-onUserMessage :: (Nick -> String -> Command) -> BotM ()
+onUserMessage :: (Nick -> String -> Bot -> IO ()) -> BotM ()
 onUserMessage fn = behavior $ \cmd bot ->
   case cmd of
-    PRIVMSG (User nick) msg -> doCommand (fn nick msg) bot
+    PRIVMSG (User nick) msg -> fn nick msg bot
     _ -> return ()
