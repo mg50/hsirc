@@ -4,6 +4,7 @@ import Types hiding (Config(..))
 import qualified Types as T
 import Control.Monad.State
 import Control.Concurrent.STM
+import Control.Monad.Trans.Reader
 
 import Text.Regex.PCRE ((=~))
 
@@ -12,7 +13,7 @@ import System.IO
 
 type BotM = State T.Config
 
-behavior :: Behavior -> BotM ()
+behavior :: Behavior () -> BotM ()
 behavior b = modify $ \conf -> let bs = T.behaviors conf
                                in conf{T.behaviors = (b:bs)}
 
@@ -29,14 +30,12 @@ nick s = modify $ \conf -> conf{T.nick = s}
 ircChans :: [String] -> BotM ()
 ircChans s = modify $ \conf -> conf{T.ircChans = s}
 
-doCommand :: Command -> Bot -> IO ()
-doCommand cmd bot = atomically $ writeTChan (writingChannel bot) cmd
-
-onMessageMatch regex fn = behavior $ \cmd bot ->
+onMessageMatch regex fn = behavior $ do
+  cmd <- asks command
   case cmd of
     PRIVMSG src msg ->
       let matches = msg =~ regex :: [[String]]
       in if null matches
             then return ()
-            else fn matches src bot
+            else fn matches
     _ -> return ()

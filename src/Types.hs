@@ -1,10 +1,15 @@
-{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeFamilies, GeneralizedNewtypeDeriving #-}
 module Types where
 
 import System.IO
 import Control.Concurrent.MVar
 import Control.Concurrent.STM
 import Control.Concurrent.STM.TChan
+
+import Control.Monad
+import Control.Monad.Trans
+import Control.Monad.Trans.Maybe
+import Control.Monad.Trans.Reader
 
 type Nick = String
 type IRCChannelName = String
@@ -14,12 +19,9 @@ data Config = Config { server :: String
                      , nick :: String
                      , password :: String
                      , ircChans :: [String]
-                     , behaviors :: [Behavior]
+                     , behaviors :: [Behavior ()]
                      }
 
-
---data family Action
-type Behavior = Command -> Bot -> IO ()
 
 data Bot = Bot { config :: Config
                , handle :: Handle
@@ -35,3 +37,7 @@ data Command = PING String
              | NICK String
              | USER String
              | JOIN String
+
+data ResponseEnv = ResponseEnv {bot :: Bot, command :: Command}
+
+type Behavior = ReaderT ResponseEnv (MaybeT IO)
